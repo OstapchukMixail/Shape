@@ -1,0 +1,261 @@
+//
+//  main.cpp
+//  Task_A
+//
+//  Created by Михаил Остапчук on 26.03.2018.
+//  Copyright © 2018 Михаил Остапчук. All rights reserved.
+//
+
+#include <iostream>
+
+class Point;
+class Segment;
+class Line;
+class Ray;
+
+class Vector {
+private:
+    int x, y;
+public:
+    Vector() : x(0), y(0) {}
+    
+    Vector(Point a, Point b);
+    
+    Vector(int x1, int y1) : x(x1), y(y1) {}
+    
+    Vector operator + (const Vector& other) const {
+        Vector vector(this->x + other.x, this->y + other.y);
+        return vector;
+    }
+    
+    int operator * (const Vector& other) const { // векторное произведение
+        return (this->x * other.y - this->y * other.x);
+    }
+    
+    int operator ^ (const Vector& other) const { // скалярное произведение
+        return (this->x * other.x + this->y * other.y);
+    }
+    
+    friend Point;
+    friend Segment;
+    friend Line;
+    friend Ray;
+};
+
+
+class Shape {
+public:
+    virtual void Shift(const Vector& vector) = 0;
+    virtual bool IsPointIn(const Point& point) = 0;
+    virtual bool IsIntersection(const Segment& segment) = 0;
+};
+
+
+class Point: public Shape {
+private:
+    int x, y;
+public:
+    Point(int x1, int y1) : x(x1), y(y1) {}
+    
+    void Shift(const Vector& vector) override {
+        x += vector.x;
+        y += vector.y;
+    }
+    
+    bool IsPointIn(const Point& point) override {
+        if ((this->x == point.x) && (this->y == point.y)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
+    bool IsIntersection(const Segment& segment) override;
+    
+    friend Vector;
+    friend Segment;
+    friend Line;
+    friend Ray;
+};
+
+
+Vector::Vector(Point a, Point b) {
+    this->x = b.x - a.x;
+    this->y = b.y - a.y;
+}
+
+
+class Segment: public Shape {
+private:
+    Point a, b;
+public:
+    Segment(Point a1, Point b1) : a(a1), b(b1) {}
+    
+    void Shift(const Vector& vector) override {
+        this->a.x += vector.x;
+        this->a.y += vector.y;
+        this->b.x += vector.x;
+        this->b.y += vector.y;
+    }
+    
+    bool IsPointIn(const Point& point) override {
+        Vector PA(point, this->a);
+        Vector PB(point, this->b);
+        Vector AB(this->a, this->b);
+        Vector AP(this->a, point);
+        if (((PA ^ PB) <= 0) && ((AB * AP) == 0)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
+    bool IsIntersection(const Segment& segment) override {
+        // *this = AB
+        // segment = CD
+        Vector CA(segment.a, this->a);
+        Vector CB(segment.a, this->b);
+        Vector BC(this->b, segment.a);
+        Vector BD(this->b, segment.b);
+        Vector AB(this->a, this->b);
+        Vector CD(segment.a, segment.b);
+        if (((AB * CD) != 0) && ((CD * CA) * (CD * CB) <= 0) && ((AB * BC) * (AB * BD) <= 0)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
+    friend Point;
+    friend Line;
+    friend Ray;
+};
+
+bool Point::IsIntersection(const Segment& segment) {
+    Vector a(*this, segment.a);
+    Vector b(*this, segment.b);
+    if ((a ^ b) == 0) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+
+class Line: Shape {
+private:
+    Point a, b;
+public:
+    Line(Point a1, Point b1):  a(a1), b(b1) {}
+    
+    void Shift(const Vector& vector) override {
+        this->a.x += vector.x;
+        this->a.y += vector.y;
+        this->b.x += vector.x;
+        this->b.y += vector.y;
+    }
+    bool IsPointIn(const Point& point) override {
+        Vector AB(this->a, this->b);
+        Vector AP(this->a, point);
+        if ((AB * AP) == 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
+    bool IsIntersection(const Segment& segment) override {
+        // *this = AB ( направляющий вектор)
+        // segment = CD
+        Vector AB(this->a, this->b);
+        Vector CD(segment.a, segment.b);
+        Vector BC(this->b, segment.a);
+        Vector BD(this->b, segment.b);
+        if (((AB * CD) != 0) && (((AB * BC) * (AB * BD)) <= 0)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+};
+
+uint8_t Fsign(int value) {
+    if (value > 0) {
+        return 1;
+    } else if (value == 0) {
+        return  0;
+    } else {
+        return -1;
+    }
+}
+
+class Ray: Shape {
+private:
+    Point a, b;
+public:
+    Ray(Point a1, Point b1): a(a1), b(b1) {}
+    
+    void Shift(const Vector& vector) override {
+        this->a.x += vector.x;
+        this->a.y += vector.y;
+        this->b.x += vector.x;
+        this->b.y += vector.y;
+    }
+    
+    bool IsPointIn(const Point& point) override {
+        Vector AB(this->a, this->b);
+        Vector AP(this->a, point);
+        if (((AB * AP) == 0) && ((AB ^ AP) >= 0))  {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
+    bool IsIntersection(const Segment& segment) override {
+        if (IsPointIn(segment.a) || IsPointIn(segment.b)) {
+            return true;
+        } else { // точки отрезка не лежат на луче
+            // *this = AB ( направляющий вектор)
+            // segment = CD
+            Vector AB(this->a, this->b);
+            Vector CD(segment.a, segment.b);
+            Vector BC(this->b, segment.a);
+            Vector BD(this->b, segment.b);
+            if (!(((AB * CD) != 0) && (((AB * BC) * (AB * BD)) <= 0))) {
+                return false;
+            } else { // точки отрезка лежат в разных полуплоскостях, относительно прямой, содержащей луч
+                // теперь проверим на выпуклость четырехугольник ACBD
+                Vector CB(segment.a, this->b);
+                Vector DA(segment.b, this->a);
+                Vector AC(this->a, segment.a);
+                uint8_t sign[4]; // 1 = plus, 0 = 0, -1 = minus
+                Vector array[4];
+                array[0] = AC;
+                array[1] = CB;
+                array[2] = BD;
+                array[3] = DA;
+                for (int i = 0; i < 4; ++i) {
+                    sign[i] = Fsign(array[i] * array[(i + 1) % 4]);
+                }
+                uint8_t max_sign = -1;
+                uint8_t min_sign = 1;
+                for (int i = 0; i < 4; ++i) {
+                    max_sign = std::max(sign[i], max_sign);
+                    min_sign = std::min(sign[i], min_sign);
+                }
+                if (max_sign + min_sign) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            
+        }
+    }
+    
+};
+
+int main() {
+    return 0;
+}
